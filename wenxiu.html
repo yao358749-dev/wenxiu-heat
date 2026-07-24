@@ -54,7 +54,25 @@ L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scal
   subdomains: ['1','2','3','4'], maxZoom: 18
 }).addTo(map);
 
-// 2. 热力层
+// 2. 中国单一底色(无省界)
+fetch('data/china_land.json')
+  .then(function(r) { return r.json(); })
+  .then(function(rings) {
+    rings.forEach(function(r) {
+      L.polygon(r.map(function(pt) { return [pt[1], pt[0]]; }), {
+        fillColor: '#fefaf2', fillOpacity: 1,
+        color: '#fefaf2', weight: 0, opacity: 0,
+        interactive: false, pane: 'tilePane'
+      }).addTo(map);
+    });
+  });
+
+// 3. 创建热力专用高层容器
+map.createPane('heatTop');
+map.getPane('heatTop').style.zIndex = 650;
+map.getPane('heatTop').style.pointerEvents = 'none';
+
+// 4. 热力层(使用专用高层容器)
 var heatData;
 fetch('data/wenxiu_heat.json')
   .then(function(r) { return r.json(); })
@@ -67,6 +85,14 @@ fetch('data/wenxiu_heat.json')
         0.45: '#fcd166', 0.65: '#f7c044', 0.85: '#ed9e2e', 1.0: '#d97a1d'
       }
     }).addTo(map);
+    // 把热力canvas提到高层容器, 不被中国填充遮挡
+    setTimeout(function() {
+      var canvas = document.querySelector('.leaflet-heatmap-pane canvas') ||
+                   document.querySelector('.leaflet-overlay-pane canvas');
+      if (canvas && map.getPane('heatTop')) {
+        map.getPane('heatTop').appendChild(canvas.parentNode || canvas);
+      }
+    }, 200);
   });
 
 var heatLayer, markerLayer;
