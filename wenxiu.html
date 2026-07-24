@@ -51,12 +51,25 @@ map = L.map('map', {
   zoomControl: true, attributionControl: false
 });
 
-// 高德底图
+// 1. 高德底图
 L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
   subdomains: ['1','2','3','4'], maxZoom: 18
 }).addTo(map);
 
-// 热力层在底图之上
+// 2. 中国底色(在底图上, 热力下)
+fetch('data/china_outline.json')
+  .then(r => r.json())
+  .then(polys => {
+    polys.forEach(p => {
+      L.polygon(p.c.map(function(pt) { return [pt[1], pt[0]]; }), {
+        fillColor: '#fefaf2', fillOpacity: 1,
+        color: '#d8ccb8', weight: 0.5,
+        interactive: false
+      }).addTo(map);
+    });
+  });
+
+// 3. 热力层(最上)
 // HSV: 36,20,100 → #fff0cc | 32,34,100 → #ffe099 | 29,47,100 → #fcd166
 // 28,60,99 → #f7c044 | 28,71,98 → #ed9e2e | 26,82,97 → #d97a1d
 fetch('data/wenxiu_heat.json')
