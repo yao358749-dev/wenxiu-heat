@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文秀月季 · 全国空间热度</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#faf7f0;height:100vh;overflow:hidden;font-family:'KaiTi','STKaiti','楷体',serif}
+#map{width:100%;height:100%}
+#top{position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:999;pointer-events:none;text-align:center}
+#top h1{font-size:26px;font-weight:700;color:#4a3028;letter-spacing:4px}
+#top span{font-size:12px;color:#a09080}
+#legend{position:absolute;bottom:28px;right:28px;z-index:999;background:rgba(255,255,255,0.9);border-radius:10px;padding:14px 18px;box-shadow:0 2px 12px rgba(0,0,0,0.05)}
+#legend .t{font-size:11px;font-weight:700;color:#4a3028;margin-bottom:6px}
+#legend .bar{width:150px;height:6px;border-radius:3px}
+#legend .l{display:flex;justify-content:space-between;font-size:9px;color:#b0a090;margin-top:3px}
+#legend .n{font-size:9px;color:#c0b0a0;margin-top:4px}
+#toggle{position:absolute;bottom:28px;left:28px;z-index:999;display:flex;gap:6px}
+#toggle button{padding:6px 14px;border-radius:14px;border:1px solid #d8c8b0;background:rgba(255,255,255,0.85);font-family:inherit;font-size:11px;color:#6a5040;cursor:pointer;transition:0.25s}
+#toggle button.on{background:#4a3028;color:#f0e4d0;border-color:#4a3028}
+.leaflet-control-zoom{border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.05)!important}
+.leaflet-control-zoom a{background:#fff!important;color:#4a3028!important;border-radius:8px!important;margin:3px!important;border:none!important}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="top"><h1>文秀月季 · 空间热度</h1><span>Wenxiu Rose · 5518 POIs · 28城</span></div>
+
+<div id="toggle">
+  <button class="on" onclick="setLayer('heat')">热力图</button>
+  <button onclick="setLayer('point')">散点图</button>
+</div>
+
+<div id="legend">
+  <div class="t">热度</div>
+  <div class="bar" style="background:linear-gradient(90deg,#fff0cc,#ffe099,#fcd166,#f7c044,#ed9e2e,#d97a1d)"></div>
+  <div class="l"><span>低</span><span></span><span></span><span></span><span>高</span></div>
+  <div class="n">网红打卡×3 · 花海×2 · 旅游×1</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+var heatLayer, markerLayer, map;
+
+map = L.map('map', {
+  center: [32, 108], zoom: 5, minZoom: 3, maxZoom: 14,
+  zoomControl: true, attributionControl: false
+});
+
+// 高德底图
+L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+  subdomains: ['1','2','3','4'], maxZoom: 18
+}).addTo(map);
+
+// 热力层在底图之上
+// HSV: 36,20,100 → #fff0cc | 32,34,100 → #ffe099 | 29,47,100 → #fcd166
+// 28,60,99 → #f7c044 | 28,71,98 → #ed9e2e | 26,82,97 → #d97a1d
+fetch('data/wenxiu_heat.json')
+  .then(r => r.json())
+  .then(data => {
+    heatLayer = L.heatLayer(data, {
+      radius: 30, blur: 20, maxZoom: 11, max: 1.0,
+      gradient: {
+        0.0: 'rgba(0,0,0,0)',
+        0.1: '#fff0cc',
+        0.25: '#ffe099',
+        0.45: '#fcd166',
+        0.65: '#f7c044',
+        0.85: '#ed9e2e',
+        1.0: '#d97a1d'
+      }
+    }).addTo(map);
+
+    markerLayer = L.layerGroup();
+    data.forEach(function(pt) {
+      if (pt[2] > 0.4) {
+        L.circleMarker([pt[0], pt[1]], {
+          radius: pt[2] * 7,
+          fillColor: pt[2] > 0.75 ? '#ed9e2e' : (pt[2] > 0.55 ? '#f7c044' : '#fcd166'),
+          color: 'rgba(255,255,255,0.3)', weight: 0.4, fillOpacity: 0.5
+        }).addTo(markerLayer);
+      }
+    });
+  });
+
+function setLayer(mode) {
+  var btns = document.querySelectorAll('#toggle button');
+  btns.forEach(function(b) { b.classList.remove('on'); });
+  btns.forEach(function(b) {
+    if ((mode === 'heat' && b.textContent.indexOf('热力') >= 0) ||
+        (mode === 'point' && b.textContent.indexOf('散点') >= 0)) b.classList.add('on');
+  });
+  if (mode === 'heat') { if (markerLayer) map.removeLayer(markerLayer); if (heatLayer) map.addLayer(heatLayer); }
+  else { if (heatLayer) map.removeLayer(heatLayer); if (markerLayer) map.addLayer(markerLayer); }
+}
+</script>
+</body>
+</html>
