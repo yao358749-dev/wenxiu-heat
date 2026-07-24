@@ -7,21 +7,21 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#faf7f0;height:100vh;overflow:hidden;font-family:'KaiTi','STKaiti','楷体',serif}
-#map{width:100%;height:100%}
+body{background:#fff0cc;height:100vh;overflow:hidden;font-family:'KaiTi','STKaiti','楷体',serif}
+#map{width:100%;height:100%;background:#fff0cc}
 #top{position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:999;pointer-events:none;text-align:center}
-#top h1{font-size:26px;font-weight:700;color:#4a3028;letter-spacing:4px}
-#top span{font-size:12px;color:#a09080}
+#top h1{font-size:26px;font-weight:700;color:#8b5e14;letter-spacing:4px}
+#top span{font-size:12px;color:#a08060}
 #legend{position:absolute;bottom:28px;right:28px;z-index:999;background:rgba(255,255,255,0.9);border-radius:10px;padding:14px 18px;box-shadow:0 2px 12px rgba(0,0,0,0.05)}
-#legend .t{font-size:11px;font-weight:700;color:#4a3028;margin-bottom:6px}
+#legend .t{font-size:11px;font-weight:700;color:#8b5e14;margin-bottom:6px}
 #legend .bar{width:150px;height:6px;border-radius:3px}
 #legend .l{display:flex;justify-content:space-between;font-size:9px;color:#b0a090;margin-top:3px}
 #legend .n{font-size:9px;color:#c0b0a0;margin-top:4px}
 #toggle{position:absolute;bottom:28px;left:28px;z-index:999;display:flex;gap:6px}
-#toggle button{padding:6px 14px;border-radius:14px;border:1px solid #d8c8b0;background:rgba(255,255,255,0.85);font-family:inherit;font-size:11px;color:#6a5040;cursor:pointer;transition:0.25s}
-#toggle button.on{background:#4a3028;color:#f0e4d0;border-color:#4a3028}
+#toggle button{padding:6px 14px;border-radius:14px;border:1px solid #e0d0a0;background:rgba(255,255,255,0.85);font-family:inherit;font-size:11px;color:#8b6e14;cursor:pointer;transition:0.25s}
+#toggle button.on{background:#8b5e14;color:#fff8e0;border-color:#8b5e14}
 .leaflet-control-zoom{border:none!important;box-shadow:0 2px 8px rgba(0,0,0,0.05)!important}
-.leaflet-control-zoom a{background:#fff!important;color:#4a3028!important;border-radius:8px!important;margin:3px!important;border:none!important}
+.leaflet-control-zoom a{background:#fff!important;color:#8b5e14!important;border-radius:8px!important;margin:3px!important;border:none!important}
 </style>
 </head>
 <body>
@@ -49,30 +49,32 @@ var map = L.map('map', {
   zoomControl: true, attributionControl: false
 });
 
-// 1. 高德底图
-L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
-  subdomains: ['1','2','3','4'], maxZoom: 18
-}).addTo(map);
+// 1. 中国底色(在tile下方, 无缝隙)
+var chinaPane = map.createPane('chinaBase');
+chinaPane.style.zIndex = 1;
 
-// 2. 中国单一底色(无省界)
 fetch('data/china_land.json')
   .then(function(r) { return r.json(); })
   .then(function(rings) {
     rings.forEach(function(r) {
       L.polygon(r.map(function(pt) { return [pt[1], pt[0]]; }), {
-        fillColor: '#fefaf2', fillOpacity: 1,
-        color: '#fefaf2', weight: 0, opacity: 0,
-        interactive: false, pane: 'tilePane'
+        fillColor: '#fff0cc', fillOpacity: 1,
+        color: '#fff0cc', weight: 0, opacity: 0,
+        interactive: false, pane: 'chinaBase'
       }).addTo(map);
     });
   });
 
-// 3. 创建热力专用高层容器
-map.createPane('heatTop');
-map.getPane('heatTop').style.zIndex = 650;
-map.getPane('heatTop').style.pointerEvents = 'none';
+// 2. 高德底图(半透, 露出底色)
+L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+  subdomains: ['1','2','3','4'], maxZoom: 18, opacity: 0.5
+}).addTo(map);
 
-// 4. 热力层(使用专用高层容器)
+// 3. 热力+等值线容器(最高层)
+var heatPane = map.createPane('heatTop');
+heatPane.style.zIndex = 650;
+heatPane.style.pointerEvents = 'none';
+
 var heatData;
 fetch('data/wenxiu_heat.json')
   .then(function(r) { return r.json(); })
@@ -85,14 +87,10 @@ fetch('data/wenxiu_heat.json')
         0.45: '#fcd166', 0.65: '#f7c044', 0.85: '#ed9e2e', 1.0: '#d97a1d'
       }
     }).addTo(map);
-    // 把热力canvas提到高层容器, 不被中国填充遮挡
     setTimeout(function() {
-      var canvas = document.querySelector('.leaflet-heatmap-pane canvas') ||
-                   document.querySelector('.leaflet-overlay-pane canvas');
-      if (canvas && map.getPane('heatTop')) {
-        map.getPane('heatTop').appendChild(canvas.parentNode || canvas);
-      }
-    }, 200);
+      var c = document.querySelector('.leaflet-heatmap-pane canvas');
+      if (c && map.getPane('heatTop')) map.getPane('heatTop').appendChild(c.parentNode || c);
+    }, 300);
   });
 
 var heatLayer, markerLayer;
