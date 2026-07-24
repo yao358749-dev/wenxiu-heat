@@ -54,24 +54,7 @@ L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scal
   subdomains: ['1','2','3','4'], maxZoom: 18
 }).addTo(map);
 
-// 2. 中国单一底色(无省界)
-var chinaFill = L.layerGroup();
-fetch('data/china_land.json')
-  .then(function(r) { return r.json(); })
-  .then(function(rings) {
-    rings.forEach(function(r) {
-      L.polygon(r.map(function(pt) { return [pt[1], pt[0]]; }), {
-        fillColor: '#fefaf2', fillOpacity: 1,
-        color: '#fefaf2', weight: 0, opacity: 0,
-        interactive: false
-      }).addTo(chinaFill);
-    });
-    chinaFill.addTo(map);
-    // 确保热力在填充之上
-    chinaFill.setZIndex(0);
-  });
-
-// 3. 热力(最后add, 在最上)
+// 2. 热力层
 var heatData;
 fetch('data/wenxiu_heat.json')
   .then(function(r) { return r.json(); })
