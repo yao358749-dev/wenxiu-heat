@@ -44,9 +44,7 @@ body{background:#faf7f0;height:100vh;overflow:hidden;font-family:'KaiTi','STKait
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
-var heatLayer, markerLayer, map;
-
-map = L.map('map', {
+var map = L.map('map', {
   center: [32, 108], zoom: 5, minZoom: 3, maxZoom: 14,
   zoomControl: true, attributionControl: false
 });
@@ -56,59 +54,63 @@ L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scal
   subdomains: ['1','2','3','4'], maxZoom: 18
 }).addTo(map);
 
-// 2. 中国底色(在底图上, 热力下)
-fetch('data/china_outline.json')
-  .then(r => r.json())
-  .then(polys => {
-    polys.forEach(p => {
-      L.polygon(p.c.map(function(pt) { return [pt[1], pt[0]]; }), {
+// 2. 中国单一底色(无省界)
+var chinaFill = L.layerGroup();
+fetch('data/china_land.json')
+  .then(function(r) { return r.json(); })
+  .then(function(rings) {
+    rings.forEach(function(r) {
+      L.polygon(r.map(function(pt) { return [pt[1], pt[0]]; }), {
         fillColor: '#fefaf2', fillOpacity: 1,
-        color: '#d8ccb8', weight: 0.5,
+        color: '#fefaf2', weight: 0, opacity: 0,
         interactive: false
-      }).addTo(map);
+      }).addTo(chinaFill);
     });
+    chinaFill.addTo(map);
+    // 确保热力在填充之上
+    chinaFill.setZIndex(0);
   });
 
-// 3. 热力层(最上)
-// HSV: 36,20,100 → #fff0cc | 32,34,100 → #ffe099 | 29,47,100 → #fcd166
-// 28,60,99 → #f7c044 | 28,71,98 → #ed9e2e | 26,82,97 → #d97a1d
+// 3. 热力(最后add, 在最上)
+var heatData;
 fetch('data/wenxiu_heat.json')
-  .then(r => r.json())
-  .then(data => {
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    heatData = data;
     heatLayer = L.heatLayer(data, {
       radius: 30, blur: 20, maxZoom: 11, max: 1.0,
       gradient: {
-        0.0: 'rgba(0,0,0,0)',
-        0.1: '#fff0cc',
-        0.25: '#ffe099',
-        0.45: '#fcd166',
-        0.65: '#f7c044',
-        0.85: '#ed9e2e',
-        1.0: '#d97a1d'
+        0.0: 'rgba(0,0,0,0)', 0.1: '#fff0cc', 0.25: '#ffe099',
+        0.45: '#fcd166', 0.65: '#f7c044', 0.85: '#ed9e2e', 1.0: '#d97a1d'
       }
     }).addTo(map);
-
-    markerLayer = L.layerGroup();
-    data.forEach(function(pt) {
-      if (pt[2] > 0.4) {
-        L.circleMarker([pt[0], pt[1]], {
-          radius: pt[2] * 7,
-          fillColor: pt[2] > 0.75 ? '#ed9e2e' : (pt[2] > 0.55 ? '#f7c044' : '#fcd166'),
-          color: 'rgba(255,255,255,0.3)', weight: 0.4, fillOpacity: 0.5
-        }).addTo(markerLayer);
-      }
-    });
   });
+
+var heatLayer, markerLayer;
 
 function setLayer(mode) {
   var btns = document.querySelectorAll('#toggle button');
   btns.forEach(function(b) { b.classList.remove('on'); });
-  btns.forEach(function(b) {
-    if ((mode === 'heat' && b.textContent.indexOf('热力') >= 0) ||
-        (mode === 'point' && b.textContent.indexOf('散点') >= 0)) b.classList.add('on');
-  });
-  if (mode === 'heat') { if (markerLayer) map.removeLayer(markerLayer); if (heatLayer) map.addLayer(heatLayer); }
-  else { if (heatLayer) map.removeLayer(heatLayer); if (markerLayer) map.addLayer(markerLayer); }
+  if (mode === 'heat') {
+    btns[0].classList.add('on');
+    if (markerLayer) map.removeLayer(markerLayer);
+    if (heatLayer) map.addLayer(heatLayer);
+  } else {
+    btns[1].classList.add('on');
+    if (heatLayer) map.removeLayer(heatLayer);
+    if (!markerLayer) {
+      markerLayer = L.layerGroup();
+      heatData.forEach(function(pt) {
+        if (pt[2] > 0.4) {
+          L.circleMarker([pt[0], pt[1]], {
+            radius: pt[2]*7, fillColor: pt[2]>0.75?'#ed9e2e':(pt[2]>0.55?'#f7c044':'#fcd166'),
+            color: 'rgba(255,255,255,0.3)', weight: 0.4, fillOpacity: 0.5
+          }).addTo(markerLayer);
+        }
+      });
+    }
+    map.addLayer(markerLayer);
+  }
 }
 </script>
 </body>
